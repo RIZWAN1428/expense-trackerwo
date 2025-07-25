@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 // <Expense, Integer> :: Expense model + uska id type (int)
 // Spring khud save(), findAll(), deleteById() jese method de dega — khud likhne ki zarurat nahi
 
-public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
+public interface ExpenseRepository extends JpaRepository<Expense, String> {
 }

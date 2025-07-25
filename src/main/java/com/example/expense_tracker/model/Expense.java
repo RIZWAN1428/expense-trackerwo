@@ -6,8 +6,7 @@ import jakarta.persistence.*;
 public class Expense {
 
         @Id   //primary keyy
-        @GeneratedValue(strategy = GenerationType.IDENTITY) // id khud banaayega aur auto-increment bhi hogaa
-        private int id;
+        private String id;
 
         private String title;
         private double amount;
@@ -16,11 +15,11 @@ public class Expense {
 
         // Getters aur setters ka use
 
-        public int getId(){
+        public String getId(){
             return id;
         }
-        public int setId(int id){
-            return this.id = id;
+        public void setId(String id){
+             this.id = id;
         }
          public String getTitle() { return title; }
          public void setTitle(String title) { this.title = title; }
