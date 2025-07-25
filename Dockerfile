@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy all files
 COPY . .
 
+RUN chmod +x mvnw
+
+
 # Build the Spring Boot project
 RUN ./mvnw clean package -DskipTests
 
