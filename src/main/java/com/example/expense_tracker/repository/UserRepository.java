@@ -8,5 +8,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     //Inherits basic DB operations like save, find, delete for User where id is Long.
     Optional<User> findByUsername(String username);
-    //Custom query method – Spring will auto-implement this to find a user by username.
+    //Spring will auto-make a query:
+    //“SELECT * FROM user WHERE username = ?”
+    //Optional<User> means: result may exist or be empty.
 }

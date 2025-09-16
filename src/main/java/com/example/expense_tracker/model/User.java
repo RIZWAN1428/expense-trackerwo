@@ -3,17 +3,21 @@ package com.example.expense_tracker.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Entity // Tells Spring this is a DB table.
-@Data  // Adds getters, setters, toString, etc.
+@Entity
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
-    @Id //Marks id as primary key.
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String username;
     private String password;
 
-    private String role = "USER";
+    private String role;
+
+    private boolean canDelete = false;
+    private boolean canEdit = false;
+
 }

@@ -13,29 +13,29 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:4200")
-@RestController //Handles HTTP requests.
-@RequestMapping("/api/auth") // All endpoints start with /api/auth.
+@RestController
+@RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired  // Injects UserRepository.
+    @Autowired
     private UserRepository userRepo;
 
-    @Autowired  //Injects PasswordEncoder.
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
     private JwtUtil jwtUtil;
 
-
-    @PostMapping("/register") //Handles POST request to /api/auth/register.
-    public ResponseEntity<String> register(@RequestBody User user) { //Gets user data from request body.
+    // register always USER by default
+    @PostMapping("/register")
+    public ResponseEntity<String> register(@RequestBody User user) {
         if (userRepo.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.badRequest().body("Username already exists");
-        }// Checks if username exists → if yes, returns error.
-        //Else:
-        user.setPassword(passwordEncoder.encode(user.getPassword())); //Encrypts password.
-        userRepo.save(user); //Saves user in DB.
-        return ResponseEntity.ok("User registered successfully"); //Sends success message.
+        }
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRole("ROLE_USER"); // always prefix with ROLE_
+        userRepo.save(user);
+        return ResponseEntity.ok("User registered successfully with USER role");
     }
 
     @PostMapping("/login")
@@ -44,11 +44,58 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            String token = jwtUtil.generateToken(user.getUsername());
-            return ResponseEntity.ok(Map.of("token", token));
+            String token = jwtUtil.generateToken(
+                    user.getUsername(),
+                    user.getRole(),
+                    user.isCanDelete(),
+                    user.isCanEdit()
+            );
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "role", user.getRole(),
+                    "canDelete", String.valueOf(user.isCanDelete()),
+                    "canEdit", String.valueOf(user.isCanEdit())
+            ));
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 
+    @PutMapping("/users/{id}/permissions")
+    public ResponseEntity<Map<String, String>> updatePermissions(@PathVariable Long id,
+                                                                 @RequestBody Map<String, Boolean> body) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setCanDelete(body.getOrDefault("canDelete", user.isCanDelete()));
+        user.setCanEdit(body.getOrDefault("canEdit", user.isCanEdit()));
+
+        userRepo.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Permissions updated")); // ✅ JSON return karega
+    }
+
+
+    @PutMapping("/users/{id}/role")
+    public ResponseEntity<String> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String newRole = body.get("role");
+        if (!newRole.equals("ROLE_USER") && !newRole.equals("ROLE_EDITOR") && !newRole.equals("ROLE_ADMIN")) {
+            return ResponseEntity.badRequest().body("Invalid role");
+        }
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setRole(newRole);
+        userRepo.save(user);
+        return ResponseEntity.ok("User role updated to " + newRole);
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<?> getAllUsers() {
+        return ResponseEntity.ok(userRepo.findAll());
+    }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        userRepo.delete(user);
+        return ResponseEntity.ok("User deleted successfully");
+    }
 }

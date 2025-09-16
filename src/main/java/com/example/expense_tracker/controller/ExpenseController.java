@@ -1,11 +1,16 @@
 package com.example.expense_tracker.controller;
 
 import com.example.expense_tracker.model.Expense;
+import com.example.expense_tracker.model.User;
 import com.example.expense_tracker.repository.ExpenseRepository;
+import com.example.expense_tracker.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.*;
 
 @RestController              // Ye class APIs handle karegi
@@ -15,6 +20,8 @@ public class ExpenseController {
 
     @Autowired  // Mujhe ExpenseRepository ka object de do, mujhe khud new nahi banana.
     private ExpenseRepository expenseRepository;
+    @Autowired
+    private UserRepository userRepo;
 
     private String generateShortRandomId(int length) {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -47,29 +54,50 @@ public class ExpenseController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
     // PUT - Update the expenseby Id
-    @PutMapping("/{id}")  // PUT API banayi — jo specific id ke expense ko update karegi.
-    public ResponseEntity<Expense> updateExpense(@PathVariable String id, @RequestBody Expense expenseDetails) {
-       // @PathVariable Long id : URL se {id} value ko le raha hai.
-        // @RequestBody Expense expenseDetails : Frontend/Postman se aayi updated data JSON me receive kar raha.
-        Optional<Expense> optionalExpense = expenseRepository.findById(id); // DB me dekhta hai ki wo id ka expense present hai ya nahi.
-        if (optionalExpense.isPresent()) {  // Agar mila to update karega.
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateExpense(@PathVariable String id, @RequestBody Expense expenseDetails, Principal principal) {
+        // Cast principal to Authentication and then get User object
+        Authentication authentication = (Authentication) principal;
+        User principalUser = (User) authentication.getPrincipal();
+
+        User user = userRepo.findByUsername(principalUser.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.isCanEdit() && !user.getRole().equals("ROLE_ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Collections.singletonMap("message", "No permission to edit"));
+        }
+
+        Optional<Expense> optionalExpense = expenseRepository.findById(id);
+        if (optionalExpense.isPresent()) {
             Expense expense = optionalExpense.get();
-            expense.setTitle(expenseDetails.getTitle());  // Har field ko naya value set kar raha.
+            expense.setTitle(expenseDetails.getTitle());
             expense.setAmount(expenseDetails.getAmount());
             expense.setCategory(expenseDetails.getCategory());
             expense.setDate(expenseDetails.getDate());
 
-            Expense updatedExpense = expenseRepository.save(expense);//Updated expense ko DB me save kar raha.
-            return ResponseEntity.ok(updatedExpense); //Agar sab thik hai to 200 OK response dega.
+            Expense updatedExpense = expenseRepository.save(expense);
+            return ResponseEntity.ok(updatedExpense);
         } else {
-            return ResponseEntity.notFound().build();// Agar ID nahi mili to 404 Not Found dega.
+            return ResponseEntity.notFound().build();
         }
     }
+
+
     // DELETE - Delete an expense by ID
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, String>> deleteExpense(@PathVariable String id) {
-        Optional<Expense> optionalExpense = expenseRepository.findById(id);
+    public ResponseEntity<?> deleteExpense(@PathVariable String id, Principal principal) {
+        Authentication authentication = (Authentication) principal;
+        User principalUser = (User) authentication.getPrincipal();
 
+        User user = userRepo.findByUsername(principalUser.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.isCanDelete() && !user.getRole().equals("ROLE_ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "No permission to delete"));
+        }
+
+        Optional<Expense> optionalExpense = expenseRepository.findById(id);
         if (optionalExpense.isPresent()) {
             expenseRepository.deleteById(id);
             return ResponseEntity.ok(Collections.singletonMap("message", "Expense deleted successfully."));

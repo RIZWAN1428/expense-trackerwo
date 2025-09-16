@@ -1,5 +1,5 @@
 package com.example.expense_tracker.dto;
-//DTO (Data Transfer Object) for login.
+//DTO (Data Transfer Object) for logi`n.
 import lombok.*;
 
 @Getter @Setter
